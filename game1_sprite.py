@@ -9,6 +9,10 @@ FPS = 60
 sub_option_group = pygame.sprite.Group()
 shadow_group = pygame.sprite.Group()
 house_group = pygame.sprite.Group()
+house_option_group = pygame.sprite.Group()
+house_path_group = pygame.sprite.Group()
+house_option_selected = pygame.sprite.Group()
+
 
 class main_option(pygame.sprite.Sprite):
     main_rect = pygame.Rect(0, 800, 900, 200)
@@ -48,16 +52,13 @@ class sub_option_house(sub_option):
         self.color = (255, 0, 0)
         shadow_group.add(shadow_house())
 
-    
 class sub_option_2(sub_option):
     main_rect = pygame.Rect(150, 825, 50, 50)
     color = (90, 91, 92)
 
-
 class sub_option_3(sub_option):
     main_rect = pygame.Rect(250, 825, 50, 50)
     color = (90, 91, 92)
-
 
 class sub_option_4(sub_option):
     main_rect = pygame.Rect(350, 825, 50, 50)
@@ -73,9 +74,74 @@ class house(pygame.sprite.Sprite):
         self.main_rect = pygame.Rect.copy(house.main_rect)
         self.main_rect.y = y_cord
         self.main_rect.x = x_cord
+        self.path_up = house_path(x_cord+25, y_cord-10, True)
+        self.path_down = house_path(x_cord+25, y_cord+100, True)
+        self.path_right = house_path(x_cord+100, y_cord+25, False)
+        self.path_left = house_path(x_cord-10, y_cord+25, False)     
+
 
     def update(self):
         pygame.draw.rect(WINDOW, self.color, self.main_rect)
+    
+class house_option(main_option):
+    current_obj = None
+    main_rect = pygame.Rect(0, 900, 900, 200)
+    color = (224, 255, 48)
+    flag = False
+    close = False
+
+    def mov(self):
+        if not self.close and self.main_rect.y > 800:
+            for sub in house_option_group.sprites():
+                sub.decrement_pos()
+            self.decrement_pos()
+        
+        elif self.close:
+            self.increment_pos()
+            for sub in house_option_group.sprites():
+                sub.increment_pos()
+            if self.main_rect.y == 900:
+                self.flag = False
+                self.close = False
+                if house_option_selected.sprites():
+                    house_option_selected.sprites()[0].clean()
+                house_option.current_obj = None
+    
+class house_option_sub(house_option):
+
+    def update(self):
+        pygame.draw.rect(WINDOW, self.color, self.main_rect)
+
+class house_option_1(house_option_sub):
+    main_rect = pygame.Rect(50, 925, 50, 50)
+    color = (90, 91, 92)
+
+    def action(self, current_house, switch=False):
+        self.color = (255, 0, 0)
+        if switch:
+            house_path_group.empty()
+        house_path_group.add(current_house.path_up)
+        house_path_group.add(current_house.path_down)
+        house_path_group.add(current_house.path_right)
+        house_path_group.add(current_house.path_left)
+
+    def clean(self):
+        self.color = house_option_1.color
+        house_path_group.empty()
+        house_option_selected.empty()
+
+
+class house_option_2(house_option_sub):
+    main_rect = pygame.Rect(150, 925, 50, 50)
+    color = (90, 91, 92)
+
+class house_option_3(house_option_sub):
+    main_rect = pygame.Rect(250, 925, 50, 50)
+    color = (90, 91, 92)
+
+class house_option_4(house_option_sub):
+    main_rect = pygame.Rect(350, 925, 50, 50)
+    color = (90, 91, 92)
 
 class shadow(pygame.sprite.Sprite):
     
@@ -98,39 +164,96 @@ class shadow_house(shadow):
         current_shadow = shadow_group.sprites()[0]
         house_group.add(house(current_shadow.main_rect.x, current_shadow.main_rect.y))
         shadow_group.remove(self)
-        print
+    
+class house_path(pygame.sprite.Sprite):
+    hori_rect = pygame.Rect(0, 0, 50, 10)
+    vert_rect = pygame.Rect(0, 0, 10, 50)
 
+    def __init__(self, x_cord, y_cord, vert_hori):
+        super().__init__()
+        if vert_hori:
+            self.main_rect = pygame.Rect.copy(self.hori_rect)
+            self.main_rect.y = y_cord
+            self.main_rect.x = x_cord
+        else:
+            self.main_rect = pygame.Rect.copy(self.vert_rect)
+            self.main_rect.y = y_cord
+            self.main_rect.x = x_cord
 
-def actions(mouse_pos):
+    def update(self):
+        pygame.draw.rect(WINDOW, (23, 3, 252), self.main_rect)
+    
+
+def actions(mouse_pos, house_box):
     if mouse_pos[1] >= 800:
-        for sub in sub_option_group.sprites():
-            if sub.main_rect.collidepoint(mouse_pos):
-                sub.action()
-                return 
+        if house_box.flag:
+            for sub in house_option_group.sprites():
+                if sub.main_rect.collidepoint(mouse_pos):
+                    selected_lst = house_option_selected.sprites()
+                    if selected_lst:
+                        if selected_lst[0] == sub:
+                            selected_lst[0].clean()
+                        else:
+                            house_option_selected.empty()
+                            house_option_selected.add(sub)
+                    else:
+                        house_option_selected.add(sub)
+                        sub.action(house_box.current_obj)
+                    return
+        else:
+            for sub in sub_option_group.sprites():
+                if sub.main_rect.collidepoint(mouse_pos):
+                    sub.action()
+                    return 
+
     elif shadow_group.sprites():
         for shadow in shadow_group.sprites():
             shadow.action()
             return
 
-def draw_window(main_box, mouse_pos):
+    for house in house_group.sprites():
+        if house.main_rect.collidepoint(mouse_pos):
+            if house_option.current_obj == house:
+                house_box.close = True
+            else:
+                house_box.flag = True
+                if house_option_selected.sprites():
+                    house_option_selected.sprites()[0].action(house, True)
+            house_option.current_obj = house
+            
+            
+
+            return
+
+def draw_window(house_box, main_box, mouse_pos):
     WINDOW.fill((255,255,255))
 
     main_box.check(mouse_pos)
 
-    if shadow_group.sprites():
-        for shadow in shadow_group.sprites():
-            shadow.update(mouse_pos)
-        
-    if house_group.sprites():
-        for house in house_group.sprites():
-            house.update()
+    for path in house_path_group.sprites():
+        path.update()
 
-    pygame.draw.rect(WINDOW, main_box.color, main_box.main_rect)
-    sub_option_group.update()
+    for shadow in shadow_group.sprites():
+        shadow.update(mouse_pos)
+        
+    for house in house_group.sprites():
+        house.update()
+
+    if not house_box.flag:
+        pygame.draw.rect(WINDOW, main_box.color, main_box.main_rect)
+        main_box.check(mouse_pos)
+        sub_option_group.update()
+
+    else:
+        pygame.draw.rect(WINDOW, house_box.color, house_box.main_rect)
+        house_box.mov()
+        house_option_group.update()
+
     pygame.display.update()
 
 def main():
     main_box = main_option()
+    house_box = house_option()
 
     sub_1 = sub_option_house()
     sub_2 = sub_option_2()
@@ -140,6 +263,16 @@ def main():
     sub_option_group.add(sub_2)
     sub_option_group.add(sub_3)
     sub_option_group.add(sub_4)
+
+    house_sub_1 = house_option_1()
+    house_sub_2 = house_option_2()
+    house_sub_3 = house_option_3()
+    house_sub_4 = house_option_4()
+    house_option_group.add(house_sub_1)
+    house_option_group.add(house_sub_2)
+    house_option_group.add(house_sub_3)
+    house_option_group.add(house_sub_4)
+
 
     run = True
     clock = pygame.time.Clock()
@@ -151,9 +284,9 @@ def main():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                actions(mouse_pos)
+                actions(mouse_pos, house_box)
             
-        draw_window(main_box, mouse_pos)
+        draw_window(house_box, main_box, mouse_pos)
     pygame.quit()
 
 if __name__ == "__main__":
