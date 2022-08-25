@@ -74,11 +74,15 @@ class house(pygame.sprite.Sprite):
         self.rect = pygame.Rect.copy(house.rect)
         self.rect.y = y_cord
         self.rect.x = x_cord
-        self.path_up = house_path(x_cord+25, y_cord-50)
-        self.path_down = house_path(x_cord+25, y_cord+100)
-        self.path_right = house_path(x_cord+100, y_cord+25)
-        self.path_left = house_path(x_cord-50, y_cord+25)     
-
+        self.path_up = house_path(x_cord+25, y_cord-50, self)
+        self.path_down = house_path(x_cord+25, y_cord+100, self)
+        self.path_right = house_path(x_cord+100, y_cord+25, self)
+        self.path_left = house_path(x_cord-50, y_cord+25, self)
+        self.temp_path_lst = []
+        self.temp_path_lst.append(self.path_up)
+        self.temp_path_lst.append(self.path_down)   
+        self.temp_path_lst.append(self.path_left)   
+        self.temp_path_lst.append(self.path_right)   
 
     def update(self):
         pygame.draw.rect(WINDOW, self.color, self.rect)
@@ -120,10 +124,8 @@ class house_option_1(house_option_sub):
         self.color = (255, 0, 0)
         if switch:
             house_path_temp_group.empty()
-        house_path_temp_group.add(current_house.path_up)
-        house_path_temp_group.add(current_house.path_down)
-        house_path_temp_group.add(current_house.path_right)
-        house_path_temp_group.add(current_house.path_left)
+        for temp_path in current_house.temp_path_lst:
+            house_path_temp_group.add(temp_path)
 
     def clean(self):
         self.color = house_option_1.color
@@ -170,22 +172,23 @@ class house_path(pygame.sprite.Sprite):
     color = None
     temp_color = (23, 3, 252)
     perm_color = (67, 235, 52)
-    extend_path = []
 
-    def __init__(self, x_cord, y_cord, prev = None):
+    def __init__(self, x_cord, y_cord, main_house, prev = None):
         super().__init__()
         self.rect = pygame.Rect.copy(self.temp_rect)
         self.rect.y = y_cord
         self.rect.x = x_cord
         self.color = self.temp_color
         self.prev = prev
+        self.main_house = main_house
+        self.extend_path = []
     
     def extend(self):
         lst = []
-        left = house_path(self.rect.x-50, self.rect.y, self)
-        right = house_path(self.rect.x+50, self.rect.y, self)
-        up = house_path(self.rect.x, self.rect.y-50, self)
-        down = house_path(self.rect.x, self.rect.y+50, self)
+        left = house_path(self.rect.x-50, self.rect.y, self.main_house, self)
+        right = house_path(self.rect.x+50, self.rect.y, self.main_house, self)
+        up = house_path(self.rect.x, self.rect.y-50, self.main_house, self)
+        down = house_path(self.rect.x, self.rect.y+50, self.main_house, self)
         lst.append(left)
         lst.append(right)
         lst.append(up)
@@ -206,11 +209,11 @@ class house_path(pygame.sprite.Sprite):
                     else:
                         house_path_temp_group.add(extend)
                         self.extend_path.append(extend)
+                        self.main_house.temp_path_lst.append(extend)
 
     def update(self):
         pygame.draw.rect(WINDOW, self.color, self.rect)
     
-
 def actions(mouse_pos, house_box):
     if house_path_temp_group.sprites():
         for path in house_path_temp_group.sprites():
@@ -218,10 +221,11 @@ def actions(mouse_pos, house_box):
                 path.color = path.perm_color
                 house_path_perm_group.add(path)
                 house_path_temp_group.remove(path)
-                for old_temp_path in path.extend_path:
-                    house_path_temp_group.remove(old_temp_path)
+                if path.prev:
+                    for old_temp_path in path.prev.extend_path:
+                        house_path_temp_group.remove(old_temp_path)
+                        old_temp_path.main_house.temp_path_lst.remove(old_temp_path)
                 path.extend()
-
 
     if mouse_pos[1] >= 800:
         if house_box.flag:
@@ -309,7 +313,6 @@ def main():
     house_option_group.add(house_sub_3)
     house_option_group.add(house_sub_4)
 
-
     run = True
     clock = pygame.time.Clock()
 
@@ -327,3 +330,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#deal with sizes, pixel stuff.... should be easy.... boi i sure hope so
